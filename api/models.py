@@ -8,7 +8,6 @@ class CustomUserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_kwargs)
         user.set_password(password)
-        user.username = email
         user.save(using=self._db)
         return user
     
@@ -21,39 +20,39 @@ class User(AbstractUser):
 
     class Meta:
         db_table = "users"
-
+        
     email = models.EmailField(unique=True)
     name = models.CharField(verbose_name="Name",max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True) 
-    contact_details = models.TextField()
-    vendor_code = models.CharField(max_length=100, unique=True)
-    
+    is_active = models.BooleanField(default=True)     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['name','contact_details']
+    REQUIRED_FIELDS = ['name']
     
     objects = CustomUserManager()
     
     def __str__(self) -> str:
         return self.name
-    
-    def save(self,*args,**kwargs):
-    
-        if not self.vendor_code :
-            self.vendor_code = generate_unique_Id(self.name)            
-        super().save(*args, **kwargs)
-    
+     
 class Vendor(models.Model):
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vendors')
+    class Meta:
+        db_table = "vendor"
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vendor')
+    contact_details = models.TextField()
+    vendor_code = models.CharField(max_length=100, unique=True)
     address = models.TextField()   
     on_time_delivery_rate = models.FloatField(blank=True,null=True)
     quality_rating_avg = models.FloatField(blank=True,null=True)
     average_response_time = models.FloatField(blank=True,null=True)
     fulfillment_rate = models.FloatField(blank=True,null=True)
-
-
-
+    
+    
+    def save(self,*args,**kwargs):
+        if not self.vendor_code :
+            self.vendor_code = generate_unique_Id(self.user.name)      
+            
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return self.user.name
