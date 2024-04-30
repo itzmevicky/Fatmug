@@ -12,4 +12,9 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
         
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep.pop('password')
+        rep['vendor_code'] = instance.vendor_code
+        return rep
         

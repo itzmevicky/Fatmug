@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth.models import  BaseUserManager,AbstractUser
 from .utilis import generate_unique_Id
 
-
     
 class CustomUserManager(BaseUserManager):
     def create_user(self,email,password=None,**extra_kwargs):        
@@ -42,13 +41,12 @@ class User(AbstractUser):
     
         if not self.vendor_code :
             self.vendor_code = generate_unique_Id(self.name)            
-        super(Vendor, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
     
 class Vendor(models.Model):
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vendors')
-    address = models.TextField()
-   
+    address = models.TextField()   
     on_time_delivery_rate = models.FloatField(blank=True,null=True)
     quality_rating_avg = models.FloatField(blank=True,null=True)
     average_response_time = models.FloatField(blank=True,null=True)
