@@ -8,10 +8,9 @@ def getRefreshToken(user):
     token = RefreshToken.for_user(user)
         
     return {
-        'access' : str(token),
-        'refresh' : str(token.access_token)
+        'refresh' : str(token),
+        'access' : str(token.access_token)
     }
-
 
 def generate_unique_Id(username):
     now = datetime.datetime.now()
