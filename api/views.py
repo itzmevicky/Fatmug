@@ -7,7 +7,6 @@ from rest_framework import status,generics
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-
 from rest_framework.permissions import IsAuthenticated
 
 
@@ -17,8 +16,6 @@ class UserResponse(ABC) :
 
 class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
     
-    permission_classes = [Auth_List_Create]
-    authentication_classes = [JWTAuthentication]
     serializer_class = ModifyUserSerializer
     queryset = serializer_class.Meta.model.objects.all()
     
@@ -108,7 +105,7 @@ class Login(UserResponse,APIView):
         return Response(self._mesg,status=status.HTTP_400_BAD_REQUEST)
 
 
-        
+
     
     
     
