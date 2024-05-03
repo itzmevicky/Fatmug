@@ -1,6 +1,9 @@
-from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
+from rest_framework import serializers
+from django.utils import timezone
+
 from .models import *
+import datetime
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -57,10 +60,11 @@ class ModifyUserSerializer(serializers.ModelSerializer):
         return rep
 
 class OrderSerializer(serializers.ModelSerializer):
-    
+    delivery_date = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ", required=False)
+
     class Meta:
         model = PurchaseOrder
-        fields = ['items','quantity','vendor' , 'acknowledgment_date']
+        fields = ['po_number','items','quantity','vendor' ,  'delivery_date','acknowledgment_date' ]
     
     def update(self, instance, validated_data):
         instance.acknowledgment_date = timezone.now()
@@ -69,15 +73,18 @@ class OrderSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
-
+    def validate(self, attrs):
+        attrs['delivery_date'] = timezone.now() + datetime.timedelta(days=2) 
+        return attrs
+    
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
 
         rep.update({
             'vendor' : ModifyUserSerializer(instance.vendor).data.get('user').get('name'),
             'po_number' :instance.po_number,
-            'issue_date' : instance.issue_date.strftime('%H:%M %d/%m/%Y'),
-            'delivery_date' : instance.delivery_date.strftime('%d/%m/%Y'),
+            'issue_date' : instance.issue_date.strftime('%d-%m-%Y'),
+            'delivery_date' : instance.delivery_date.strftime('%d-%m-%Y'),
             'status' : instance.status,
             'acknowledgment_date' : instance.acknowledgment_date,
         })

@@ -10,8 +10,10 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from django.utils import timezone
-
 import random 
+
+
+
 
 class UserResponse(ABC) :
     def __init__(self) -> None:
@@ -20,6 +22,12 @@ class UserResponse(ABC) :
 class GenerateRandomProducts(APIView):
     
     def get(self, request , *args, **kwargs):
+        
+        from django.utils import timezone
+        
+        date = timezone.localtime().strftime('%d/%m/%Y %H:%M')
+        print(date)
+        
         products = [
             {"id": random.randint(1, 1000), "name": "iPhone", "category": "phones", "price": random.randint(35000, 100000), "description": "A smartphone from Apple."},
             {"id": random.randint(1, 1000), "name": "Samsung Galaxy", "category": "phones", "price": random.randint(25000, 75000), "description": "Latest model with high resolution camera."},
@@ -70,7 +78,11 @@ class GenerateRandomProducts(APIView):
             {"id": random.randint(1, 1000), "name": "Resistance Bands Set", "category": "fitness", "price": random.randint(500, 2500), "description": "Set of resistance bands for strength training and fitness."},
             ]
         random.shuffle(products)
-        return Response(products[:5],status=status.HTTP_200_OK)
+        mesg = {
+            'Data':products[:5],
+            'Date' : date,
+        }
+        return Response(mesg,status=status.HTTP_200_OK)
  
 #Vendor Profile
 
@@ -193,9 +205,7 @@ class Update_Delete_Order(generics.RetrieveUpdateDestroyAPIView):
     
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
-        data = request.data.copy()
-        serializer = self.serializer_class(instance=instance,data=data,partial=True)
-        
+        serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response('Acknowledged',status=status.HTTP_200_OK)        

@@ -3,9 +3,7 @@ from django.contrib.auth.models import  BaseUserManager,AbstractUser
 from .utilis import generate_unique_Id
 from django.db.models import JSONField
 
-from django.utils import timezone
 
-import datetime
     
 class CustomUserManager(BaseUserManager):
     def create_user(self,email,password=None,**extra_kwargs):        
@@ -70,7 +68,7 @@ class  PurchaseOrder(models.Model):
     po_number = models.AutoField(primary_key=True)    
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, 
                                help_text="Link to the Vendor model")
-    order_date = models.DateField(help_text="Date when the order was placed" )
+    order_date = models.DateField(auto_now_add=True,help_text="Date when the order was placed" )
     delivery_date = models.DateTimeField(help_text="Expected or actual delivery date of the order")
     items = JSONField(help_text="Details of items ordered")
     quantity = models.IntegerField(help_text="Total quantity of items in the PO")    
@@ -83,11 +81,7 @@ class  PurchaseOrder(models.Model):
     acknowledgment_date = models.DateTimeField(null=True, blank=True, 
                                 help_text="Timestamp when the vendor acknowledged the PO")
 
-    def save(self,*args, **kwargs):
-        if not self.pk:
-            self.order_date = timezone.now().date()
-            self.delivery_date = self.order_date + datetime.timedelta(days=2)            
-        super().save(*args, **kwargs)
+
         
     
 
