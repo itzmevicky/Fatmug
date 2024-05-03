@@ -53,8 +53,7 @@ class Vendor(models.Model):
     
     def save(self,*args,**kwargs):
         if not self.vendor_code :
-            self.vendor_code = generate_unique_Id(self.user.name)      
-            
+            self.vendor_code = generate_unique_Id(self.user.name)                  
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -64,7 +63,7 @@ class  PurchaseOrder(models.Model):
     
     class Meta:
         db_table = "purchase_order"
-            
+        
     po_number = models.AutoField(primary_key=True)    
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, 
                                help_text="Link to the Vendor model")

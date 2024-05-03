@@ -23,11 +23,6 @@ class GenerateRandomProducts(APIView):
     
     def get(self, request , *args, **kwargs):
         
-        from django.utils import timezone
-        
-        date = timezone.localtime().strftime('%d/%m/%Y %H:%M')
-        print(date)
-        
         products = [
             {"id": random.randint(1, 1000), "name": "iPhone", "category": "phones", "price": random.randint(35000, 100000), "description": "A smartphone from Apple."},
             {"id": random.randint(1, 1000), "name": "Samsung Galaxy", "category": "phones", "price": random.randint(25000, 75000), "description": "Latest model with high resolution camera."},
@@ -80,7 +75,6 @@ class GenerateRandomProducts(APIView):
         random.shuffle(products)
         mesg = {
             'Data':products[:5],
-            'Date' : date,
         }
         return Response(mesg,status=status.HTTP_200_OK)
  
