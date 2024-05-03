@@ -1,22 +1,20 @@
 from abc import ABC
 from .serializer import *
+from .permissions import *
 from .utilis import  getRefreshToken
 from rest_framework.views import APIView  
-from .permissions import *
 from rest_framework import status,generics 
-from django.contrib.auth import authenticate
 from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from django.utils import timezone
 import random 
-
-
 
 
 class UserResponse(ABC) :
     def __init__(self) -> None:
+        print("I've been called")
         self._mesg = {}
 
 class GenerateRandomProducts(APIView):
@@ -93,7 +91,8 @@ class Login(UserResponse,APIView):
             self._mesg.update({
                 'access' : token.get('access'),
                 'refresh' : token.get('refresh'),
-                'user' : user.id
+                'user_id' : user.id , 
+                'username' : user.name
             })
             return Response(self._mesg,status=status.HTTP_200_OK)
         
@@ -171,40 +170,84 @@ class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
         return Response(self._mesg,status=status.HTTP_204_NO_CONTENT)
   
 #Purchase Orders
-  
-class Get_Create_Order(generics.ListCreateAPIView):    
+
+class Get_Create_Order(UserResponse,generics.ListCreateAPIView): 
+    permission_classes = [Auth_List_Create]   
+    authentication_classes = [JWTAuthentication]
     serializer_class = OrderSerializer
     
     def get_queryset(self):
         vendor = self.request.query_params.get('vendor')
+        
         if not vendor:
             return self.serializer_class.Meta.model.objects.all()
+        
+        if self.request.user.name != vendor:
+            raise serializers.ValidationError(detail='Un Authorized Access')
+        
         return self.serializer_class.Meta.model.objects.filter(vendor__user__name = vendor)
     
     def get(self, request, *args, **kwargs):
         data = self.get_queryset()
         serializer = self.serializer_class(data,many=True)
-        return Response(serializer.data,status=status.HTTP_200_OK)
         
-    def post(self, request, *args, **kwargs):
+        if serializer.data:
+            self._mesg.update({
+                'products': serializer.data,
+                'status' : True,
+            })
+            return Response(self._mesg,status=status.HTTP_200_OK)
+        
+        self._mesg.update({
+            'mesg' : "You Don't Have Any Orders Yet , Thanks ! ",
+            'status' : False,
+        })
+        return Response(self._mesg,status=status.HTTP_200_OK)
+    
+    def post(self, request, *args, **kwargs):       
         serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(status=status.HTTP_201_CREATED)
-        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid(raise_exception=True):
+            product = serializer.save()
+            self._mesg.update({
+                'mesg' : f"Order Placed Your Order Id , {product.po_number}"
+            })
+            return Response(self._mesg,status=status.HTTP_201_CREATED)
   
-class Update_Delete_Order(generics.RetrieveUpdateDestroyAPIView):
+class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated,amIOwner]
     serializer_class = OrderSerializer
-    queryset = serializer_class.Meta.model.objects.all()
+    # queryset = serializer_class.Meta.model.objects.all()
+    
+    def get_queryset(self):
+        return super().get_queryset()
     
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response('Acknowledged',status=status.HTTP_200_OK)        
+            self._mesg.update({
+                'status':True,
+                'mesg' :  'Order Approved',
+                'data' : serializer.data,
+            })
+            return Response(self._mesg,status=status.HTTP_200_OK)        
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
     
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance:
+            po_number = instance.po_number
+            instance.delete()
+            self._mesg.update({
+                'message' : f"Order ID {po_number} Deleted",
+                'status':True
+            })
+            return Response(self._mesg,status=status.HTTP_200_OK)
+        return Response(f"Orde {po_number} ID Doesn't Exist",status=status.HTTP_400_BAD_REQUEST)
+        
+
+        
     
     
 

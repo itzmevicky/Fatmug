@@ -1,7 +1,6 @@
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from django.utils import timezone
-
 from .models import *
 import datetime
 
@@ -10,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta :
         model = User
-        fields = ['name','email', 'password' ]
+        fields = ['id','name','email', 'password' ]
  
 
     def __init__(self, *args, **kwargs):
@@ -20,6 +19,12 @@ class UserSerializer(serializers.ModelSerializer):
             self.fields['password'].required = True
         else:
             self.fields['password'].required = False
+    
+    def to_representation(self, instance):
+        rep =  super().to_representation(instance)
+        rep['pk'] = instance.id
+        rep.pop('id')
+        return rep
         
 class ModifyUserSerializer(serializers.ModelSerializer):
     
@@ -70,17 +75,22 @@ class OrderSerializer(serializers.ModelSerializer):
         validated_data['delivery_date'] = timezone.now() + datetime.timedelta(days=2)
         return PurchaseOrder.objects.create(**validated_data)
 
-    def update(self, instance, validated_data):           
+    def update(self, instance, validated_data):      
+        
+        if instance.acknowledgment_date:
+            raise  serializers.ValidationError(f'Order Id {instance.po_number} Already Approved')     
+        
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)            
+            setattr(instance, attr, value) 
+                    
         instance.acknowledgment_date = timezone.now()
         instance.save()     
         
-                
         return instance
     
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
+        
         rep.update({
             'vendor' : ModifyUserSerializer(instance.vendor).data.get('user').get('name') if instance.vendor and instance.vendor.user else 'No Vendor',
             'po_number' :instance.po_number,
