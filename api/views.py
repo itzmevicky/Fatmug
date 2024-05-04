@@ -1,7 +1,9 @@
 from abc import ABC
 from .serializer import *
 from .permissions import *
+from django.http import Http404
 from .utilis import  getRefreshToken
+
 from rest_framework.views import APIView  
 from rest_framework import status,generics 
 from rest_framework.response import Response
@@ -14,7 +16,6 @@ import random
 
 class UserResponse(ABC) :
     def __init__(self) -> None:
-        print("I've been called")
         self._mesg = {}
 
 class GenerateRandomProducts(APIView):
@@ -76,7 +77,7 @@ class GenerateRandomProducts(APIView):
         }
         return Response(mesg,status=status.HTTP_200_OK)
  
-#Vendor Profile
+#Vendor 
 
 class Login(UserResponse,APIView):
     
@@ -115,7 +116,8 @@ class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
             self._mesg.update({
                 'access' : tokens.get('access'),
                 'refresh' : tokens.get('refresh') , 
-                'user' : user.id
+                'user' : user.id,
+                'username' : user.name
             })
             return Response(self._mesg,status=status.HTTP_201_CREATED)  
 
@@ -125,7 +127,7 @@ class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
         return Response(errors,status=status.HTTP_400_BAD_REQUEST)
 
 class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [amIOwner,IsAuthenticated]
+    permission_classes = [Auth_List_Create]
     authentication_classes = [JWTAuthentication]
     serializer_class = ModifyUserSerializer
     queryset = serializer_class.Meta.model.objects.all()
@@ -148,7 +150,7 @@ class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
             serializer.save()     
 
             self._mesg.update({
-                'message' : f"{user_Instance.user} , Details Updated"   
+                'mesg' : f"{user_Instance.user} , Details Updated"   
             })      
             return Response(self._mesg,status=status.HTTP_200_OK)    
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST) 
@@ -213,14 +215,12 @@ class Get_Create_Order(UserResponse,generics.ListCreateAPIView):
             })
             return Response(self._mesg,status=status.HTTP_201_CREATED)
   
-class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):
+class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):  
     permission_classes = [IsAuthenticated,amIOwner]
     serializer_class = OrderSerializer
-    # queryset = serializer_class.Meta.model.objects.all()
+    queryset = serializer_class.Meta.model.objects.all()
     
-    def get_queryset(self):
-        return super().get_queryset()
-    
+
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
@@ -228,28 +228,76 @@ class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):
             serializer.save()
             self._mesg.update({
                 'status':True,
-                'mesg' :  'Order Approved',
+                'mesg' :  'Order Updated',
                 'data' : serializer.data,
             })
             return Response(self._mesg,status=status.HTTP_200_OK)        
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance:
-            po_number = instance.po_number
-            instance.delete()
+        
+        try:
+            instance = self.serializer_class.Meta.model.objects.get(po_number=kwargs.get('pk'))
+        except:
             self._mesg.update({
-                'message' : f"Order ID {po_number} Deleted",
-                'status':True
+                'mesg' : f"Order ID {kwargs.get('pk')} Not Found",
+                'status':False
             })
-            return Response(self._mesg,status=status.HTTP_200_OK)
-        return Response(f"Orde {po_number} ID Doesn't Exist",status=status.HTTP_400_BAD_REQUEST)
+            return Response(self._mesg,status=status.HTTP_404_NOT_FOUND)
         
+        instance.delete()
+        self._mesg.update({
+            'mesg' : f"Order ID {kwargs.get('pk')} Deleted",
+            'status':True
+        })
+        return Response(self._mesg,status=status.HTTP_200_OK)
+        
+class AcknowledgeOrder(UserResponse,generics.CreateAPIView):
+    
+    permission_classes = [IsAuthenticated,amIOwner]
+    serializer_class = AcknowledgeOrderSerializer
+    queryset = serializer_class.Meta.model.objects.all()
+    
+    
+    
+    def post(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            self._mesg.update({
+                'status':True,
+                'mesg' :  'Order Acknowledged',
+                'data' : serializer.data,
+            })
+            return Response(self._mesg,status=status.HTTP_200_OK)        
+        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
+
+#Performance
+
+class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
+    
+    serializer_class = VendorPerformanceSerializer
+    
+    def get_queryset(self):
+        instance = self.serializer_class.Meta.model.objects.filter(user__id = self.kwargs.get('pk')).first()
+        if not instance:
+            self._mesg['mesg'] = "User Don't Exist "
+            raise serializers.ValidationError(self._mesg)
+        return instance
+        
+    def get(self, request, *args, **kwargs):
+        instance = self.get_queryset()
+        serializer = self.serializer_class(instance)
+        self._mesg.update({
+            'data' : serializer.data,
+            'status' :True,
+        })
+        return Response(self._mesg,status=status.HTTP_200_OK)
         
     
-    
+
 
        
         

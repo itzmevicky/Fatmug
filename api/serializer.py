@@ -69,27 +69,18 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseOrder
-        fields = ['po_number','items','quantity','vendor' , 'delivery_date','acknowledgment_date' ]
+        fields = ['po_number','items','quantity','vendor' , 'delivery_date' ]
     
     def create(self, validated_data):
         validated_data['delivery_date'] = timezone.now() + datetime.timedelta(days=2)
         return PurchaseOrder.objects.create(**validated_data)
 
-    def update(self, instance, validated_data):      
-        
-        if instance.acknowledgment_date:
-            raise  serializers.ValidationError(f'Order Id {instance.po_number} Already Approved')     
-        
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value) 
-                    
-        instance.acknowledgment_date = timezone.now()
-        instance.save()     
-        
-        return instance
+
     
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
+        
+        
         
         rep.update({
             'vendor' : ModifyUserSerializer(instance.vendor).data.get('user').get('name') if instance.vendor and instance.vendor.user else 'No Vendor',
@@ -100,3 +91,31 @@ class OrderSerializer(serializers.ModelSerializer):
             'acknowledgment_date' : instance.acknowledgment_date.strftime("%d-%m-%Y %H:%M") if instance.acknowledgment_date else 'Waiting for confirmation',
         })
         return rep
+    
+class AcknowledgeOrderSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = PurchaseOrder
+        fields = ['acknowledgment_date']
+    
+    def update(self, instance, validated_data):      
+        
+        if instance.acknowledgment_date:
+            raise  serializers.ValidationError(f'Order Id {instance.po_number} Already Approved')     
+        
+        instance.acknowledgment_date = timezone.now()
+        instance.save()     
+        
+        return instance
+        
+class VendorPerformanceSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Vendor    
+        fields = ['user','on_time_delivery_rate','quality_rating_avg','average_response_time','fulfillment_rate']
+    
+    
+    def to_representation(self, instance):
+        rep =  super().to_representation(instance)
+        return rep
+    

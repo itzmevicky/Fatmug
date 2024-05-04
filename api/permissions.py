@@ -8,6 +8,9 @@ class Auth_List_Create(permissions.BasePermission):
             return True
         return request.user and request.user.is_authenticated
     
+    def  has_object_permission(self, request, view, obj):
+        return obj.user == request.user
+    
 class amIOwner(permissions.BasePermission):
     message = "Request Aborted , You Don't Have Enough Permission"
     def has_object_permission(self, request, view, obj):     
