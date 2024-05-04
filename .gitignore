@@ -4,3 +4,4 @@ db.sqlite3
 __pycache__
 FastAPI_ML_Captcha.pdf
 test.py
+migrations
