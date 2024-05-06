@@ -69,8 +69,8 @@ class  PurchaseOrder(models.Model):
                                help_text="Link to the Vendor model")
     order_date = models.DateField(auto_now_add=True,help_text="Date when the order was placed" )
     delivery_date = models.DateTimeField(help_text="Expected or actual delivery date of the order")
-    items = JSONField(help_text="Details of items ordered")
-    quantity = models.IntegerField(help_text="Total quantity of items in the PO")    
+    items = JSONField(help_text="Details of items ordered")    
+    quantity = models.IntegerField(help_text="Total quantity of items in the PO")        
     status = models.CharField(max_length=100,default= 'pending' 
                               , help_text="Current status of the PO (e.g., pending, completed, canceled)")    
     quality_rating = models.FloatField(null=True, blank=True, 

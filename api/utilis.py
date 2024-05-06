@@ -1,7 +1,8 @@
 import datetime
 import random
-
+from abc import ABC , abstractmethod
 from rest_framework_simplejwt.tokens import RefreshToken 
+
 
 
 def getRefreshToken(user):
@@ -20,3 +21,32 @@ def generate_unique_Id(username):
     
     return f"{username_prefix}-{timestamp}-{number:06}"
 
+
+class UserResponse() :
+    
+    def __init__(self) -> None:
+        self._mesg = {}
+
+    
+    def custom_response(self , status :bool, mesg:str ,**kwarg ) -> dict:
+        message = {
+            'status':status,
+            'mesg' : mesg
+        }
+        message.update(kwarg)            
+        return message
+
+class OrderHandler(ABC) :
+    
+    @abstractmethod
+    def validate(self,instance):
+        pass
+    
+    @abstractmethod
+    def handle(self,instance):
+        pass
+    
+    @abstractmethod
+    def send_signal(self,instance):
+        pass
+    

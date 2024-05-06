@@ -69,7 +69,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseOrder
-        fields = ['po_number','items','quantity','vendor']
+        fields = ['po_number','items','quantity','vendor', 'actual_delivered_date']
     
     def create(self, validated_data):
         validated_data['delivery_date'] = timezone.now() + datetime.timedelta(days=2)
@@ -77,13 +77,18 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
+        
+        if not instance.actual_delivered_date:
+            rep.pop('actual_delivered_date')
+            
         rep.update({
             'vendor' : ModifyUserSerializer(instance.vendor).data.get('user').get('name') if instance.vendor and instance.vendor.user else 'No Vendor',
             'po_number' :instance.po_number,
             'issue_date' : instance.issue_date.strftime("%d-%m-%Y %H:%M"),
             'delivery_date' : instance.delivery_date.strftime('%d-%m-%Y'),
-            'status' : instance.status,
+            'order_status' : instance.status,
             'acknowledgment_date' : instance.acknowledgment_date.strftime("%d-%m-%Y %H:%M") if instance.acknowledgment_date else 'Waiting for confirmation',
+            
         })
         return rep
     
@@ -98,7 +103,9 @@ class AcknowledgeOrderSerializer(serializers.ModelSerializer):
         
         rep =  super().to_representation(instance)
         rep.update({
-            'acknowledgment_date' : instance.acknowledgment_date.strftime("%d-%m-%Y %H:%M")
+            'acknowledgment_date' : instance.acknowledgment_date.strftime("%d-%m-%Y %H:%M"),
+            'order_status' : instance.status,
+            
         })
         return rep
         
@@ -109,6 +116,9 @@ class VendorPerformanceSerializer(serializers.ModelSerializer):
         fields = ['user','on_time_delivery_rate','quality_rating_avg','average_response_time','fulfillment_rate']
     
     def float_time_to_string(self,total_hours):
+        
+        if not total_hours:
+            return None
 
         hours = int(total_hours)  
 
@@ -130,6 +140,7 @@ class VendorPerformanceSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
         rep['user'] = UserSerializer(instance.user).data.get('name')
+        rep['on_time_delivery_rate'] = f"{instance.on_time_delivery_rate} %" if instance.on_time_delivery_rate else None
         rep['average_response_time'] = self.float_time_to_string(instance.average_response_time)
         return rep
 

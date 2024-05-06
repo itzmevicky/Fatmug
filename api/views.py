@@ -1,29 +1,23 @@
-from abc import ABC
+from abc import ABC , abstractmethod
 
 from .models import *
+from .utilis import *
+from .signals import *
 from .serializer import *
 from .permissions import *
 
-from .utilis import  getRefreshToken
+
 from rest_framework.views import APIView  
 from rest_framework import status,generics 
 from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
-from .signals import *
-
 from django.db.models import Avg, ExpressionWrapper, F, fields
-
-
+from rest_framework_simplejwt.authentication import JWTAuthentication
 import random 
 
 
 
-class UserResponse(ABC) :
-    def __init__(self) -> None:
-        self._mesg = {}
 
 class GenerateRandomProducts(APIView):
     
@@ -80,11 +74,11 @@ class GenerateRandomProducts(APIView):
             ]
         random.shuffle(products)
         data = products[0]
-        obj = GeneratePerformance(1)
+        # obj = GeneratePerformance(1)
         mesg = {
             'Data':data ,
             'status' : True,
-            'Average TIme' : obj.calculate_Response_Time(),
+            # 'Average TIme' : obj.calculate_Response_Time(),
         }        
         return Response(mesg,status=status.HTTP_200_OK)
 
@@ -124,8 +118,8 @@ class GeneratePerformance():
 
         return f"{hours} hours, {integral_minutes} minutes"
 
-
 #Vendor 
+
 
 class Login(UserResponse,APIView):
     
@@ -217,6 +211,7 @@ class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
                 'mesg' : "User Delete",
             }) 
         return Response(self._mesg,status=status.HTTP_204_NO_CONTENT)
+
   
 #Purchase Orders
 
@@ -225,9 +220,7 @@ class Get_Create_Order(UserResponse,generics.ListCreateAPIView):
     authentication_classes = [JWTAuthentication]
     serializer_class = OrderSerializer
     
-    
 
-    
     def get_queryset(self):
         vendor = self.request.query_params.get('vendor')
         
@@ -327,58 +320,58 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
     
     def update(self, request, *args, **kwargs):
         
-        order_type = self.request.query_params.get('type')
         instance = self.get_queryset()
         serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
-        if serializer.is_valid():
-            
-            if order_type == 'order_approved':
-                    if instance.acknowledgment_date:                
-                        self._mesg.update({
-                            'status':False,
-                            'mesg' : f'Purchase Order Id {instance.po_number} Already Approved'
-                        })
-                        return Response(self._mesg,status=status.HTTP_400_BAD_REQUEST)
-                    
-                    
-                    instance.acknowledgment_date = timezone.now()
-                    
-                    serializer.save()
-                    
-                    self._mesg.update({
-                        'status':True,
-                        'mesg' :  'Order Acknowledged',
-                        'data' : serializer.data,
-                    })
-                    post_save_signal.send(sender=instance.__class__ , instance=instance,type=order_type)
-                    return Response(self._mesg,status=status.HTTP_200_OK)     
-                
-            elif order_type == 'order_delivered' :
-                
-                    if not instance.acknowledgment_date:
-                        self._mesg.update({
-                            'status' :False,
-                            'mesg' : 'Approve , Purchase Order First !'
-                        })
-                        return Response(self._mesg,status=status.HTTP_400_BAD_REQUEST)
-                    
-                    instance.status = 'completed'
-                    instance.actual_delivered_date = timezone.now()
-                    serializer.save()
-                    
-                    self._mesg.update({
-                        'status':True,
-                        'mesg' :  'Order Completed',
-                    })
-                    post_save_signal.send(sender=instance.__class__ , instance=instance,type=order_type)
-                    return Response(self._mesg,status=status.HTTP_200_OK)    
-                    
-        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         
+        order_type = self.request.query_params.get('type')
+        
+        if serializer.is_valid(): 
+                       
+            if order_type == "order_approved":
+                handler = Handle_Order_Approve()
+                result , message = handler.handle(instance)
+                
+                if result:       
+                    handler.send_signal(instance)             
+                    response = self.custom_response(status=result,mesg=message,data=serializer.data)                    
+                    return Response(response,status=status.HTTP_200_OK)
+                                
+                response = self.custom_response(result,message)
+                return Response(response,status=status.HTTP_400_BAD_REQUEST)
+            
+            if order_type == "order_delivered":
+                handler = Handle_Order_Delivered()
+                result , message = handler.handle(instance)
+                
+                if result:
+                    handler.send_signal(instance)
+                    response = self.custom_response(status=result,mesg=message) 
+                    return Response(response,status=status.HTTP_200_OK)
+                
+                response = self.custom_response(result,message)
+                return Response(response,status=status.HTTP_400_BAD_REQUEST)
+                    
+            if order_type == "order_cancel":
+                handler = Handle_Order_Cancel()
+                result , message = handler.handle(instance)
+                if result:
+                    handler.send_signal(instance)
+                    response = self.custom_response(status=result,mesg=message,data=serializer.data) 
+                    return Response(response,status=status.HTTP_200_OK)
+                
+                response = self.custom_response(status=result,mesg=message) 
+                return Response(response,status=status.HTTP_400_BAD_REQUEST)
+            
+            if order_type == "order_rate":
+                pass
 
+            if order_type == "":
+                pass
+            
+            
 
 #Performance
-    
+
 class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
     
     serializer_class = VendorPerformanceSerializer
@@ -386,8 +379,10 @@ class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
     def get_queryset(self):
         instance = self.serializer_class.Meta.model.objects.filter(user__id = self.kwargs.get('pk')).first()
         if not instance:
-            self._mesg['mesg'] = "User Don't Exist "
+            self._mesg['mesg'] = "User Don't Exist"
             raise serializers.ValidationError(self._mesg)
+        
+        
         return instance
         
     def get(self, request, *args, **kwargs):
@@ -399,6 +394,65 @@ class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
         })
         return Response(self._mesg,status=status.HTTP_200_OK)
         
+
+class Handle_Order_Approve(OrderHandler) :
+    
+    def validate(self, instance):
+        if instance.acknowledgment_date:
+            return False, 'This order has already been acknowledged.'
+        return True , None
+            
+    def handle(self, instance):
+        validate = self.validate(instance)
+        if validate[0]:
+            instance.acknowledgment_date = timezone.now()
+            instance.save()
+            return True, 'Order acknowledged successfully.'
+        return validate
+    
+    def send_signal(self, instance):
+        post_save_signal.send(sender=instance.__class__ , instance=instance ,type="order_approved")
+
+class Handle_Order_Delivered(OrderHandler):
+    
+    def validate(self, instance):
+        if not instance.acknowledgment_date:
+            return False , 'Approve , Purchase Order First'
+        
+        if instance.status == 'completed':
+            return False , 'Invalid , Order Already Delivered'
+                
+        return True , None
+    
+    def handle(self, instance):
+        validate = self.validate(instance)
+        if validate[0]:
+            instance.status = 'completed'
+            instance.save()
+            return True, 'Order Delivered successfully.'
+        return validate
+    
+    def send_signal(self, instance):
+        post_save_signal.send(ender=instance.__class__ , instance=instance ,type="order_delivered")
+        
+class Handle_Order_Cancel(OrderHandler):
+    
+    def validate(self, instance):
+        if instance.status == 'canceled':
+            return False , 'Invalid , Order Already Canceled'
+        return True , None
+    
+    def handle(self, instance):
+        validate = self.validate(instance)
+        if validate[0]:
+            instance.status = 'canceled'
+            instance.save()
+            return True, 'Order Canceled successfully.'
+        
+        return validate
+    
+    def send_signal(self, instance):
+        post_save_signal.send(ender=instance.__class__ , instance=instance ,type="order_cancel")
     
 
 
