@@ -1,9 +1,10 @@
 from abc import ABC
+
+from .models import *
 from .serializer import *
 from .permissions import *
-from django.http import Http404
-from .utilis import  getRefreshToken
 
+from .utilis import  getRefreshToken
 from rest_framework.views import APIView  
 from rest_framework import status,generics 
 from rest_framework.response import Response
@@ -11,7 +12,13 @@ from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from .signals import *
+
+from django.db.models import Avg, ExpressionWrapper, F, fields
+
+
 import random 
+
 
 
 class UserResponse(ABC) :
@@ -72,11 +79,52 @@ class GenerateRandomProducts(APIView):
             {"id": random.randint(1, 1000), "name": "Resistance Bands Set", "category": "fitness", "price": random.randint(500, 2500), "description": "Set of resistance bands for strength training and fitness."},
             ]
         random.shuffle(products)
+        data = products[0]
+        obj = GeneratePerformance(1)
         mesg = {
-            'Data':products[:5],
-        }
+            'Data':data ,
+            'status' : True,
+            'Average TIme' : obj.calculate_Response_Time(),
+        }        
         return Response(mesg,status=status.HTTP_200_OK)
- 
+
+class GeneratePerformance():
+    
+    def __init__(self, userId) -> None:
+         self.user = userId
+    
+    
+    def calculate_Response_Time(self):
+        
+        average_duration = PurchaseOrder.objects.filter(vendor__user_id = self.user).annotate(
+            response_time=ExpressionWrapper(
+                F('acknowledgment_date') - F('issue_date'),
+                output_field=fields.DurationField()
+            )
+        ).aggregate(average_response_time=Avg('response_time'))
+        
+        return self.float_time_to_string(average_duration['average_response_time'].total_seconds() / 3600)
+
+
+    def float_time_to_string(self,total_hours):
+        hours = int(total_hours)  
+
+
+        fractional_hours = total_hours - hours  
+        minutes = fractional_hours * 60
+
+
+        integral_minutes = int(minutes)  
+
+
+        # fractional_minutes = minutes - integral_minutes
+        # seconds = fractional_minutes * 60 
+
+        # rounded_seconds = round(seconds)
+
+        return f"{hours} hours, {integral_minutes} minutes"
+
+
 #Vendor 
 
 class Login(UserResponse,APIView):
@@ -107,7 +155,7 @@ class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
     
     serializer_class = ModifyUserSerializer
     queryset = serializer_class.Meta.model.objects.all()
-    
+
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():       
@@ -123,7 +171,6 @@ class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
 
         
         errors = serializer.errors
-
         return Response(errors,status=status.HTTP_400_BAD_REQUEST)
 
 class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
@@ -178,16 +225,27 @@ class Get_Create_Order(UserResponse,generics.ListCreateAPIView):
     authentication_classes = [JWTAuthentication]
     serializer_class = OrderSerializer
     
+    
+
+    
     def get_queryset(self):
         vendor = self.request.query_params.get('vendor')
         
+        try:
+            start = int(self.request.query_params.get('start', 0)) 
+            end = int(self.request.query_params.get('end', 10))
+        except:
+            start = 0
+            end = 10
+        
         if not vendor:
-            return self.serializer_class.Meta.model.objects.all()
+            return self.serializer_class.Meta.model.objects.all()[start: end]
         
         if self.request.user.name != vendor:
             raise serializers.ValidationError(detail='Un Authorized Access')
-        
-        return self.serializer_class.Meta.model.objects.filter(vendor__user__name = vendor)
+
+        return self.serializer_class.Meta.model.objects.filter(vendor__user__name = vendor)[start:end]
+         
     
     def get(self, request, *args, **kwargs):
         data = self.get_queryset()
@@ -208,12 +266,14 @@ class Get_Create_Order(UserResponse,generics.ListCreateAPIView):
     
     def post(self, request, *args, **kwargs):       
         serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid(raise_exception=True):
+        if serializer.is_valid():
             product = serializer.save()
             self._mesg.update({
                 'mesg' : f"Order Placed Your Order Id , {product.po_number}"
             })
             return Response(self._mesg,status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+        return Response(serializer.errors)
   
 class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):  
     permission_classes = [IsAuthenticated,amIOwner]
@@ -252,30 +312,73 @@ class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):
         })
         return Response(self._mesg,status=status.HTTP_200_OK)
         
-class AcknowledgeOrder(UserResponse,generics.CreateAPIView):
+class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
     
     permission_classes = [IsAuthenticated,amIOwner]
     serializer_class = AcknowledgeOrderSerializer
-    queryset = serializer_class.Meta.model.objects.all()
     
     
+    def get_queryset(self):
+        pk = self.kwargs.get('pk')
+        try:
+            return self.serializer_class.Meta.model.objects.get(po_number=pk)
+        except:
+            raise serializers.ValidationError(f"Order Id {pk} don't exist")
     
-    def post(self, request, *args, **kwargs):
-        instance = self.get_object()
+    def update(self, request, *args, **kwargs):
+        
+        order_type = self.request.query_params.get('type')
+        instance = self.get_queryset()
         serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
         if serializer.is_valid():
-            serializer.save()
-            self._mesg.update({
-                'status':True,
-                'mesg' :  'Order Acknowledged',
-                'data' : serializer.data,
-            })
-            return Response(self._mesg,status=status.HTTP_200_OK)        
+            
+            if order_type == 'order_approved':
+                    if instance.acknowledgment_date:                
+                        self._mesg.update({
+                            'status':False,
+                            'mesg' : f'Purchase Order Id {instance.po_number} Already Approved'
+                        })
+                        return Response(self._mesg,status=status.HTTP_400_BAD_REQUEST)
+                    
+                    
+                    instance.acknowledgment_date = timezone.now()
+                    
+                    serializer.save()
+                    
+                    self._mesg.update({
+                        'status':True,
+                        'mesg' :  'Order Acknowledged',
+                        'data' : serializer.data,
+                    })
+                    post_save_signal.send(sender=instance.__class__ , instance=instance,type=order_type)
+                    return Response(self._mesg,status=status.HTTP_200_OK)     
+                
+            elif order_type == 'order_delivered' :
+                
+                    if not instance.acknowledgment_date:
+                        self._mesg.update({
+                            'status' :False,
+                            'mesg' : 'Approve , Purchase Order First !'
+                        })
+                        return Response(self._mesg,status=status.HTTP_400_BAD_REQUEST)
+                    
+                    instance.status = 'completed'
+                    instance.actual_delivered_date = timezone.now()
+                    serializer.save()
+                    
+                    self._mesg.update({
+                        'status':True,
+                        'mesg' :  'Order Completed',
+                    })
+                    post_save_signal.send(sender=instance.__class__ , instance=instance,type=order_type)
+                    return Response(self._mesg,status=status.HTTP_200_OK)    
+                    
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        
 
 
 #Performance
-
+    
 class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
     
     serializer_class = VendorPerformanceSerializer

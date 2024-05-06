@@ -65,23 +65,18 @@ class ModifyUserSerializer(serializers.ModelSerializer):
         return rep
 
 class OrderSerializer(serializers.ModelSerializer):
-    delivery_date = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ", required=False)
+    # delivery_date = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ", required=False)
 
     class Meta:
         model = PurchaseOrder
-        fields = ['po_number','items','quantity','vendor' , 'delivery_date' ]
+        fields = ['po_number','items','quantity','vendor']
     
     def create(self, validated_data):
         validated_data['delivery_date'] = timezone.now() + datetime.timedelta(days=2)
         return PurchaseOrder.objects.create(**validated_data)
 
-
-    
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
-        
-        
-        
         rep.update({
             'vendor' : ModifyUserSerializer(instance.vendor).data.get('user').get('name') if instance.vendor and instance.vendor.user else 'No Vendor',
             'po_number' :instance.po_number,
@@ -96,17 +91,16 @@ class AcknowledgeOrderSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PurchaseOrder
-        fields = ['acknowledgment_date']
-    
-    def update(self, instance, validated_data):      
+        fields = ['acknowledgment_date', 'status']
         
-        if instance.acknowledgment_date:
-            raise  serializers.ValidationError(f'Order Id {instance.po_number} Already Approved')     
+ 
+    def to_representation(self, instance):
         
-        instance.acknowledgment_date = timezone.now()
-        instance.save()     
-        
-        return instance
+        rep =  super().to_representation(instance)
+        rep.update({
+            'acknowledgment_date' : instance.acknowledgment_date.strftime("%d-%m-%Y %H:%M")
+        })
+        return rep
         
 class VendorPerformanceSerializer(serializers.ModelSerializer):
     
@@ -114,8 +108,35 @@ class VendorPerformanceSerializer(serializers.ModelSerializer):
         model = Vendor    
         fields = ['user','on_time_delivery_rate','quality_rating_avg','average_response_time','fulfillment_rate']
     
-    
+    def float_time_to_string(self,total_hours):
+
+        hours = int(total_hours)  
+
+
+        fractional_hours = total_hours - hours  
+        minutes = fractional_hours * 60
+
+
+        integral_minutes = int(minutes)  
+
+
+        # fractional_minutes = minutes - integral_minutes
+        # seconds = fractional_minutes * 60 
+
+        # rounded_seconds = round(seconds)
+
+        return f"{hours} hours, {integral_minutes} minutes"
+
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
+        rep['user'] = UserSerializer(instance.user).data.get('name')
+        rep['average_response_time'] = self.float_time_to_string(instance.average_response_time)
         return rep
+
+class CalculatePerformance(serializers.ModelSerializer):
     
+    class Meta:
+        model = PurchaseOrder
+        
+        fields = '__all__'
+        

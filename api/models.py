@@ -79,10 +79,14 @@ class  PurchaseOrder(models.Model):
                                 help_text="Timestamp when the PO was issued to the vendor")    
     acknowledgment_date = models.DateTimeField(null=True, blank=True, 
                                 help_text="Timestamp when the vendor acknowledged the PO")
+    actual_delivered_date = models.DateTimeField(null=True, blank=True)
 
-
+class AverageResponseTime(models.Model):
+    
+    vendor = models.OneToOneField(Vendor,on_delete=models.CASCADE,related_name='response_time')
+    count = models.IntegerField(default=0)
+    
+    class Meta:
+        db_table = "average_response_time"
         
     
-
-    
-
