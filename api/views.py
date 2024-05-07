@@ -19,7 +19,7 @@ import random
 
 
 
-class GenerateRandomProducts(APIView):
+class GenerateRandomProducts(APIView , UserResponse):
     
     def get(self, request , *args, **kwargs):
         
@@ -73,20 +73,14 @@ class GenerateRandomProducts(APIView):
             {"id": random.randint(1, 1000), "name": "Resistance Bands Set", "category": "fitness", "price": random.randint(500, 2500), "description": "Set of resistance bands for strength training and fitness."},
             ]
         random.shuffle(products)
-        data = products[0]
-        # obj = GeneratePerformance(1)
-        mesg = {
-            'Data':data ,
-            'status' : True,
-            # 'Average TIme' : obj.calculate_Response_Time(),
-        }        
-        return Response(mesg,status=status.HTTP_200_OK)
+        data = products[0]        
+        rep = self.custom_response(status=True,data=data)
+        return Response(rep,status=status.HTTP_200_OK)
 
-class GeneratePerformance():
+class GeneratePerformance(Float_Time_To_String):
     
     def __init__(self, userId) -> None:
          self.user = userId
-    
     
     def calculate_Response_Time(self):
         
@@ -99,27 +93,7 @@ class GeneratePerformance():
         
         return self.float_time_to_string(average_duration['average_response_time'].total_seconds() / 3600)
 
-
-    def float_time_to_string(self,total_hours):
-        hours = int(total_hours)  
-
-
-        fractional_hours = total_hours - hours  
-        minutes = fractional_hours * 60
-
-
-        integral_minutes = int(minutes)  
-
-
-        # fractional_minutes = minutes - integral_minutes
-        # seconds = fractional_minutes * 60 
-
-        # rounded_seconds = round(seconds)
-
-        return f"{hours} hours, {integral_minutes} minutes"
-
 #Vendor 
-
 
 class Login(UserResponse,APIView):
     
@@ -127,23 +101,21 @@ class Login(UserResponse,APIView):
         data = request.data        
         email = data.get('email')
         password = data.get('password')
-        user = authenticate(username=email,password=password)
-        
+        user = authenticate(username=email,password=password)        
         if user:
-            token = getRefreshToken(user)
-            self._mesg.update({
-                'access' : token.get('access'),
-                'refresh' : token.get('refresh'),
+            token = getRefreshToken(user)            
+            
+            data = {
                 'user_id' : user.id , 
                 'username' : user.name
-            })
-            return Response(self._mesg,status=status.HTTP_200_OK)
+            }
+            
+            data.update(token)            
+            rep = self.custom_response(status=True , **data )            
+            return Response(rep,status=status.HTTP_200_OK)        
         
-        self._mesg.update({
-            'message' : 'Invalid User',
-            'status' : False,             
-        })
-        return Response(self._mesg,status=status.HTTP_400_BAD_REQUEST)
+        rep = self.custom_response(status=False,mesg="Invalid User")
+        return Response(rep,status=status.HTTP_400_BAD_REQUEST)
 
 class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
     
@@ -154,18 +126,18 @@ class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():       
             user = serializer.save()          
-            tokens = getRefreshToken(user)
-            self._mesg.update({
-                'access' : tokens.get('access'),
-                'refresh' : tokens.get('refresh') , 
-                'user' : user.id,
+            token = getRefreshToken(user)
+            data = {
+                'user_id' : user.id , 
                 'username' : user.name
-            })
-            return Response(self._mesg,status=status.HTTP_201_CREATED)  
-
+            }
+            
+            data.update(token)            
+            rep = self.custom_response(status=True , **data )            
+            return Response(rep,status=status.HTTP_200_OK)        
         
-        errors = serializer.errors
-        return Response(errors,status=status.HTTP_400_BAD_REQUEST)
+        rep = self.custom_response(status=False,mesg="Invalid User")
+        return Response(rep,status=status.HTTP_400_BAD_REQUEST)
 
 class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [Auth_List_Create]
@@ -189,30 +161,22 @@ class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
                 
         if  serializer.is_valid():
             serializer.save()     
-
-            self._mesg.update({
-                'mesg' : f"{user_Instance.user} , Details Updated"   
-            })      
-            return Response(self._mesg,status=status.HTTP_200_OK)    
+            rep = self.custom_response(status=True,
+                                       mesg=f"{user_Instance.user} , Details Updated" )
+            return Response(rep,status=status.HTTP_200_OK)    
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST) 
     
     def delete(self, request, *args, **kwargs):
         try:
             user = User.objects.get(id=request.user.id)            
-        except:
-            self._mesg.update({
-                'status' : False,
-                'mesg' : "User Don't Exist",
-            })
-            return Response(self._mesg,status=status.HTTP_404_NOT_FOUND)
+        except:            
+            rep = self.custom_response(status=False,mesg="User Don't Exist")
+            return Response(rep,status=status.HTTP_404_NOT_FOUND)
+        
         user.delete()        
-        self._mesg.update({
-                'status' : True,
-                'mesg' : "User Delete",
-            }) 
-        return Response(self._mesg,status=status.HTTP_204_NO_CONTENT)
+        rep = self.custom_response(status=True,mesg="User Delete")
+        return Response(rep,status=status.HTTP_204_NO_CONTENT)
 
-  
 #Purchase Orders
 
 class Get_Create_Order(UserResponse,generics.ListCreateAPIView): 
@@ -310,7 +274,6 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
     permission_classes = [IsAuthenticated,amIOwner]
     serializer_class = AcknowledgeOrderSerializer
     
-    
     def get_queryset(self):
         pk = self.kwargs.get('pk')
         try:
@@ -324,6 +287,7 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
         serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
         
         order_type = self.request.query_params.get('type')
+        
         
         if serializer.is_valid(): 
                        
@@ -362,14 +326,19 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
                 response = self.custom_response(status=result,mesg=message) 
                 return Response(response,status=status.HTTP_400_BAD_REQUEST)
             
-            if order_type == "order_rate":
-                pass
-
-            if order_type == "":
-                pass
-            
-            
-
+            if order_type == "order_rate":                
+                po_rating = self.request.query_params.get('rating')
+                handler = Handle_Order_Rate()
+                result , message = handler.handle(instance,rating=po_rating)
+                
+                if result:
+                    handler.send_signal(instance)
+                    response = self.custom_response(status=result,mesg=message,data=serializer.data) 
+                    return Response(response,status=status.HTTP_200_OK)
+                
+                response = self.custom_response(status=result,mesg=message) 
+                return Response(response,status=status.HTTP_400_BAD_REQUEST)
+                   
 #Performance
 
 class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
@@ -393,13 +362,13 @@ class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
             'status' :True,
         })
         return Response(self._mesg,status=status.HTTP_200_OK)
-        
 
+      
 class Handle_Order_Approve(OrderHandler) :
     
     def validate(self, instance):
-        if instance.acknowledgment_date:
-            return False, 'This order has already been acknowledged.'
+        # if instance.acknowledgment_date:
+        #     return False, 'This order has already been acknowledged.'
         return True , None
             
     def handle(self, instance):
@@ -419,8 +388,8 @@ class Handle_Order_Delivered(OrderHandler):
         if not instance.acknowledgment_date:
             return False , 'Approve , Purchase Order First'
         
-        if instance.status == 'completed':
-            return False , 'Invalid , Order Already Delivered'
+        # if instance.status == 'completed':
+        #     return False , 'Invalid , Order Already Delivered'
                 
         return True , None
     
@@ -428,12 +397,13 @@ class Handle_Order_Delivered(OrderHandler):
         validate = self.validate(instance)
         if validate[0]:
             instance.status = 'completed'
+            instance.actual_delivered_date = timezone.now()
             instance.save()
             return True, 'Order Delivered successfully.'
         return validate
     
     def send_signal(self, instance):
-        post_save_signal.send(ender=instance.__class__ , instance=instance ,type="order_delivered")
+        post_save_signal.send(sender=instance.__class__ , instance=instance ,type="order_delivered")
         
 class Handle_Order_Cancel(OrderHandler):
     
@@ -447,15 +417,30 @@ class Handle_Order_Cancel(OrderHandler):
         if validate[0]:
             instance.status = 'canceled'
             instance.save()
-            return True, 'Order Canceled successfully.'
+            return True, 'Order Canceled successfully'
         
         return validate
     
     def send_signal(self, instance):
         post_save_signal.send(ender=instance.__class__ , instance=instance ,type="order_cancel")
+
+class Handle_Order_Rate(OrderHandler):
     
+    def validate(self, instance):
+        if instance.quality_rating:
+            return False , "Rating Already Provided"
+        return True , None
 
-
+    def handle(self, instance,**kwarg):        
+        validate = self.validate(instance)
+        if validate[0]:
+            instance.quality_rating = kwarg.get('rating')
+            instance.save()
+            return True, 'Product Rating Updated'
+        return validate
+        
+    def send_signal(self, instance):
+        post_save_signal.send(sender=instance.__class__ , instance=instance ,type="order_rate")
        
         
 

@@ -21,6 +21,14 @@ def generate_unique_Id(username):
     
     return f"{username_prefix}-{timestamp}-{number:06}"
 
+class Float_Time_To_String():
+    
+    def float_time_to_string(self,total_hours):
+        hours = int(total_hours)  
+        fractional_hours = total_hours - hours  
+        minutes = fractional_hours * 60
+        integral_minutes = int(minutes)  
+        return f"{hours} hours, {integral_minutes} minutes"
 
 class UserResponse() :
     
@@ -28,11 +36,14 @@ class UserResponse() :
         self._mesg = {}
 
     
-    def custom_response(self , status :bool, mesg:str ,**kwarg ) -> dict:
+    def custom_response(self , status :bool, mesg:str = None ,**kwarg ) -> dict:
         message = {
             'status':status,
-            'mesg' : mesg
+            'mesg' : mesg 
         }
+        if not mesg :
+            message.pop('mesg')
+            
         message.update(kwarg)            
         return message
 
@@ -48,5 +59,14 @@ class OrderHandler(ABC) :
     
     @abstractmethod
     def send_signal(self,instance):
+        pass
+
+class Calculate(ABC):
+    
+    def __init__(self,instance) -> None:
+        self._vendor = instance
+    
+    @abstractmethod
+    def calculate(self):        
         pass
     

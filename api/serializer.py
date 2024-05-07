@@ -11,7 +11,6 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id','name','email', 'password' ]
  
-
     def __init__(self, *args, **kwargs):
         super(UserSerializer, self).__init__(*args, **kwargs)
         request = self.context.get('request')
@@ -64,9 +63,7 @@ class ModifyUserSerializer(serializers.ModelSerializer):
         rep.get('user').pop('password')
         return rep
 
-class OrderSerializer(serializers.ModelSerializer):
-    # delivery_date = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%SZ", required=False)
-
+class OrderSerializer(serializers.ModelSerializer):    
     class Meta:
         model = PurchaseOrder
         fields = ['po_number','items','quantity','vendor', 'actual_delivered_date']
@@ -78,9 +75,6 @@ class OrderSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
         
-        if not instance.actual_delivered_date:
-            rep.pop('actual_delivered_date')
-            
         rep.update({
             'vendor' : ModifyUserSerializer(instance.vendor).data.get('user').get('name') if instance.vendor and instance.vendor.user else 'No Vendor',
             'po_number' :instance.po_number,
@@ -90,6 +84,11 @@ class OrderSerializer(serializers.ModelSerializer):
             'acknowledgment_date' : instance.acknowledgment_date.strftime("%d-%m-%Y %H:%M") if instance.acknowledgment_date else 'Waiting for confirmation',
             
         })
+        
+        if not instance.actual_delivered_date:
+            rep.pop('actual_delivered_date')
+        else:
+            rep['actual_delivered_date'] = instance.actual_delivered_date.strftime("%d-%m-%Y %H:%M")
         return rep
     
 class AcknowledgeOrderSerializer(serializers.ModelSerializer):
@@ -151,3 +150,7 @@ class CalculatePerformance(serializers.ModelSerializer):
         
         fields = '__all__'
         
+    def to_representation(self, instance):
+        rep =  super().to_representation(instance)
+        print(rep)
+        return rep
