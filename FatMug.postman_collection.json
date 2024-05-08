@@ -1,0 +1,858 @@
+{
+	"info": {
+		"_postman_id": "6232efc5-136a-4e5e-a408-9684dea5a966",
+		"name": "FatMug",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27790315"
+	},
+	"item": [
+		{
+			"name": "Vendor",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"",
+									"   if(pm.response.code === 200) {",
+									"        var jsonData = pm.response.json();",
+									"        pm.environment.set(\"access\", jsonData.access);",
+									"        pm.environment.set(\"refresh\", jsonData.refresh);",
+									"        pm.environment.set(\"userid\", jsonData.user_id);",
+									"        pm.environment.set(\"vendor\",jsonData.username);",
+									"   }",
+									"   ",
+									"   ",
+									"",
+									"",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "\n// Login with email & password to generate the token . \n\n{\n    \"email\" : \"vicky@demo.com\",\n    \"password\" : \"pass@123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/login/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"login",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"  if(pm.response.code === 200) {",
+									"        var jsonData = pm.response.json();",
+									"        pm.environment.set(\"access\", jsonData.access);",
+									"        pm.environment.set(\"refresh\", jsonData.refresh);",
+									"        pm.environment.set(\"userid\", jsonData.user_id);",
+									"        pm.environment.set(\"vendor\",jsonData.username);",
+									"   }",
+									"   "
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user\": {\n        \"name\": \"vicky\",\n        \"email\": \"vicky@demo.com\",\n        \"password\" : \"pass@123\"\n    },\n    \"contact_details\": \"9874563210\",\n    \"address\": \"Mumbai,India\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/vendors/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List All users",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/vendors/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Retrieve Single Detail",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/vendors/6",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"6"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Details",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user\" : {\n        \"email\" : \"vp@hm.com\"\n    },\n    \"contact_details\": \"987456321\" , // Update Details\n    \"address\": \"Mumbai,India\" // Update Address\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/vendors/{{userid}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"{{userid}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/vendors/{{userid}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"{{userid}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Vendor Performance",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({\r",
+									"    key: 'Authorization',\r",
+									"    value: 'Bearer ' + pm.environment.get('access')\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/vendors/{{userid}}/performance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"{{userid}}",
+								"performance"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Purchase Order (Vendor Side)",
+			"item": [
+				{
+					"name": "All Orders (Logged In User)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/purchase_orders?vendor={{vendor}}&start&end",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders"
+							],
+							"query": [
+								{
+									"key": "vendor",
+									"value": "{{vendor}}"
+								},
+								{
+									"key": "start",
+									"value": null
+								},
+								{
+									"key": "end",
+									"value": null
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Order (Logged In User)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"po_id\", jsonData.data.po_number);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Acknowledge Order (Approve)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"",
+									"",
+									"if (pm.environment.get('po_id')){",
+									"    pm.request.headers.add({",
+									"        key: 'Authorization',",
+									"        value: 'Bearer ' + pm.environment.get('access')",
+									"    });",
+									"}",
+									"",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/{{po_id}}/acknowledge/?type=order_approved",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"{{po_id}}",
+								"acknowledge",
+								""
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "order_approved"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Purchase Order (Complete)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"if (pm.environment.get('po_id')){",
+									"",
+									"    pm.request.headers.add({",
+									"        key: 'Authorization',",
+									"        value: 'Bearer ' + pm.environment.get('access')",
+									"    });",
+									"",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/{{po_id}}/acknowledge/?type=order_delivered",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"{{po_id}}",
+								"acknowledge",
+								""
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "order_delivered"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/1/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"1",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Purchase Order (User Side)",
+			"item": [
+				{
+					"name": "Generate Random Products",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/randomproducts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"randomproducts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Place Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": " {\n    \n    \"items\" :\n         {\n        \"id\": 584,\n        \"name\": \"Whole Wheat Bread\",\n        \"category\": \"groceries\",\n        \"price\": 56,\n        \"description\": \"Healthy whole wheat bread.\"\n    },  \n    \"quantity\" : 5,\n    \"vendor\" : {{userid}} // Pass The Vendor PK Id\n }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Purchase Order (Rate)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/2/acknowledge/?type=order_rate&rating=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"2",
+								"acknowledge",
+								""
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "order_rate"
+								},
+								{
+									"key": "rating",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Purchase Order (Cancel)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/{{po_id}}/acknowledge/?type=order_cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"{{po_id}}",
+								"acknowledge",
+								""
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "order_cancel"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Order",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.add({",
+									"    key: 'Authorization',",
+									"    value: 'Bearer ' + pm.environment.get('access')",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\" :\n         {\n        \"id\": 585,\n        \"name\": \"Whole Wheat Bread\",\n        \"category\": \"groceries\",\n        \"price\": 56,\n        \"description\": \"Healthy whole wheat bread.\"\n    },  \n    \"quantitsy\" : 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/purchase_orders/2/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"purchase_orders",
+								"2",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
