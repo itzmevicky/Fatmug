@@ -31,11 +31,7 @@ class Float_Time_To_String():
         return f"{hours} hours, {integral_minutes} minutes"
 
 class UserResponse() :
-    
-    def __init__(self) -> None:
-        self._mesg = {}
-
-    
+        
     def custom_response(self , status :bool, mesg:str = None ,**kwarg ) -> dict:
         message = {
             'status':status,

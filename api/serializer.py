@@ -2,6 +2,7 @@ from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from django.utils import timezone
 from .models import *
+from .utilis import *
 import datetime
 
 
@@ -108,33 +109,13 @@ class AcknowledgeOrderSerializer(serializers.ModelSerializer):
         })
         return rep
         
-class VendorPerformanceSerializer(serializers.ModelSerializer):
+class VendorPerformanceSerializer(serializers.ModelSerializer, Float_Time_To_String):
     
     class Meta:
         model = Vendor    
         fields = ['user','on_time_delivery_rate','quality_rating_avg','average_response_time','fulfillment_rate']
     
-    def float_time_to_string(self,total_hours):
-        
-        if not total_hours:
-            return None
 
-        hours = int(total_hours)  
-
-
-        fractional_hours = total_hours - hours  
-        minutes = fractional_hours * 60
-
-
-        integral_minutes = int(minutes)  
-
-
-        # fractional_minutes = minutes - integral_minutes
-        # seconds = fractional_minutes * 60 
-
-        # rounded_seconds = round(seconds)
-
-        return f"{hours} hours, {integral_minutes} minutes"
 
     def to_representation(self, instance):
         rep =  super().to_representation(instance)
@@ -143,14 +124,3 @@ class VendorPerformanceSerializer(serializers.ModelSerializer):
         rep['average_response_time'] = self.float_time_to_string(instance.average_response_time)
         return rep
 
-class CalculatePerformance(serializers.ModelSerializer):
-    
-    class Meta:
-        model = PurchaseOrder
-        
-        fields = '__all__'
-        
-    def to_representation(self, instance):
-        rep =  super().to_representation(instance)
-        print(rep)
-        return rep

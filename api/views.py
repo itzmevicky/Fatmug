@@ -1,4 +1,6 @@
-from abc import ABC , abstractmethod
+# Global Imports
+
+import random 
 
 from .models import *
 from .utilis import *
@@ -6,17 +8,13 @@ from .signals import *
 from .serializer import *
 from .permissions import *
 
-
 from rest_framework.views import APIView  
 from rest_framework import status,generics 
 from rest_framework.response import Response
 from django.contrib.auth import authenticate
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Avg, ExpressionWrapper, F, fields
 from rest_framework_simplejwt.authentication import JWTAuthentication
-import random 
-
-
 
 
 class GenerateRandomProducts(APIView , UserResponse):
@@ -77,21 +75,6 @@ class GenerateRandomProducts(APIView , UserResponse):
         rep = self.custom_response(status=True,data=data)
         return Response(rep,status=status.HTTP_200_OK)
 
-class GeneratePerformance(Float_Time_To_String):
-    
-    def __init__(self, userId) -> None:
-         self.user = userId
-    
-    def calculate_Response_Time(self):
-        
-        average_duration = PurchaseOrder.objects.filter(vendor__user_id = self.user).annotate(
-            response_time=ExpressionWrapper(
-                F('acknowledgment_date') - F('issue_date'),
-                output_field=fields.DurationField()
-            )
-        ).aggregate(average_response_time=Avg('response_time'))
-        
-        return self.float_time_to_string(average_duration['average_response_time'].total_seconds() / 3600)
 
 #Vendor 
 
@@ -117,11 +100,42 @@ class Login(UserResponse,APIView):
         rep = self.custom_response(status=False,mesg="Invalid User")
         return Response(rep,status=status.HTTP_400_BAD_REQUEST)
 
-class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
+class List_Create_Vendors(generics.ListCreateAPIView,UserResponse):
     
     serializer_class = ModifyUserSerializer
     queryset = serializer_class.Meta.model.objects.all()
+    
 
+    
+    # def get_object(self):
+    #     pk = self.request.query_params.get('userId') 
+        
+    #     if not pk:            
+    #         return None
+            
+    #     try:
+    #         instance = self.serializer_class.Meta.model.objects.get(id=pk)
+    #     except:
+    #         raise serializers.ValidationError("User Don't Exist")
+        
+    #     return instance
+    
+    # def get(self, request, *args, **kwargs):
+    #     try:
+    #         instance = self.get_object()
+    #         if instance:                
+    #             serializer = self.serializer_class(instance)   
+    #         else:
+    #             instance =  self.get_queryset()
+    #             serializer = self.serializer_class(instance,many=True)
+                    
+    #     except ValidationError as e:            
+    #         rep = self.custom_response(status=False,mesg=e.args[0])
+    #         return Response(rep,status=status.HTTP_400_BAD_REQUEST)
+        
+    #     rep = self.custom_response(status=True,data=serializer.data)
+    #     return Response(rep,status=status.HTTP_200_OK)
+        
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():       
@@ -136,44 +150,57 @@ class Get_Create_Vendors(UserResponse,generics.ListCreateAPIView):
             rep = self.custom_response(status=True , **data )            
             return Response(rep,status=status.HTTP_200_OK)        
         
-        rep = self.custom_response(status=False,mesg="Invalid User")
+        rep = self.custom_response(status=False,mesg="Invalid User",data=serializer.error_messages)
         return Response(rep,status=status.HTTP_400_BAD_REQUEST)
 
-class Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
+class Get_Update_Delete_Vendors(UserResponse,generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [Auth_List_Create]
     authentication_classes = [JWTAuthentication]
     serializer_class = ModifyUserSerializer
     queryset = serializer_class.Meta.model.objects.all()
     
-    def get_serializer_context(self):
-        context = super(Update_Delete_Vendors, self).get_serializer_context()
-        context['request'] = self.request
-        return context
-    
+    def get_object(self):
+        pk = self.kwargs.get('pk')
+        try:
+            instance = self.serializer_class.Meta.model.objects.get(user__id=pk)
+        except Exception as ex:
+            raise serializers.ValidationError("User Doesn't Exist")
+        return instance
+        
     def get_serializer_context(self):
         context = super().get_serializer_context()
+        context['request'] = self.request
         context['password'] = False
         return context
     
+    def get(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            if instance:                
+                serializer = self.serializer_class(instance)   
+            else:                
+                serializer = self.queryset()
+                    
+        except ValidationError as e:            
+            rep = self.custom_response(status=False,mesg=e.args[0])
+            return Response(rep,status=status.HTTP_400_BAD_REQUEST)
+        
+        rep = self.custom_response(status=True,data=serializer.data)
+        return Response(rep,status=status.HTTP_200_OK)
+        
     def put(self, request, *args, **kwargs):
-        user_Instance = self.get_object()
-        serializer = self.serializer_class(instance=user_Instance,data=request.data,partial=True)
-                
+        instance = self.get_object()
+        serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
+                        
         if  serializer.is_valid():
             serializer.save()     
-            rep = self.custom_response(status=True,
-                                       mesg=f"{user_Instance.user} , Details Updated" )
+            rep = self.custom_response(status=True,mesg=f"{instance.user} , Details Updated" )
             return Response(rep,status=status.HTTP_200_OK)    
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST) 
     
-    def delete(self, request, *args, **kwargs):
-        try:
-            user = User.objects.get(id=request.user.id)            
-        except:            
-            rep = self.custom_response(status=False,mesg="User Don't Exist")
-            return Response(rep,status=status.HTTP_404_NOT_FOUND)
-        
-        user.delete()        
+    def delete(self, request, *args, **kwargs):        
+        user = self.get_queryset()  
+        user.user.delete()  
         rep = self.custom_response(status=True,mesg="User Delete")
         return Response(rep,status=status.HTTP_204_NO_CONTENT)
 
@@ -184,7 +211,6 @@ class Get_Create_Order(UserResponse,generics.ListCreateAPIView):
     authentication_classes = [JWTAuthentication]
     serializer_class = OrderSerializer
     
-
     def get_queryset(self):
         vendor = self.request.query_params.get('vendor')
         
@@ -203,72 +229,73 @@ class Get_Create_Order(UserResponse,generics.ListCreateAPIView):
 
         return self.serializer_class.Meta.model.objects.filter(vendor__user__name = vendor)[start:end]
          
-    
     def get(self, request, *args, **kwargs):
         data = self.get_queryset()
         serializer = self.serializer_class(data,many=True)
         
-        if serializer.data:
-            self._mesg.update({
-                'products': serializer.data,
-                'status' : True,
-            })
-            return Response(self._mesg,status=status.HTTP_200_OK)
+        if serializer.data:            
+            rep = self.custom_response(status=True,products=serializer.data)
+            return Response(rep,status=status.HTTP_200_OK)        
+        rep = self.custom_response(status=False,mesg="You Don't Have Any Orders Yet , Thanks !")
         
-        self._mesg.update({
-            'mesg' : "You Don't Have Any Orders Yet , Thanks ! ",
-            'status' : False,
-        })
-        return Response(self._mesg,status=status.HTTP_200_OK)
+        return Response(rep,status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):       
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             product = serializer.save()
-            self._mesg.update({
-                'mesg' : f"Order Placed Your Order Id , {product.po_number}"
-            })
-            return Response(self._mesg,status=status.HTTP_201_CREATED)
-        print(serializer.errors)
-        return Response(serializer.errors)
+            rep = self.custom_response(status=True,mesg=f"Order Placed Your Order Id , {product.po_number}")
+            return Response(rep,status=status.HTTP_201_CREATED)
+        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
   
 class Update_Delete_Order(UserResponse,generics.RetrieveUpdateDestroyAPIView):  
+    
     permission_classes = [IsAuthenticated,amIOwner]
     serializer_class = OrderSerializer
-    queryset = serializer_class.Meta.model.objects.all()
-    
 
-    def put(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            self._mesg.update({
-                'status':True,
-                'mesg' :  'Order Updated',
-                'data' : serializer.data,
-            })
-            return Response(self._mesg,status=status.HTTP_200_OK)        
-        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+    def get_object(self):
+        pk =  self.kwargs.get('pk')      
+        instance = None  
+        try:
+            instance = self.serializer_class.Meta.model.objects.get(po_number=pk)
+        except:
+            return False , instance 
+        return True , instance 
     
+    def get(self, request, *args, **kwargs):
+        result ,instance  = self.get_object()
+        if result:
+            serializer = self.serializer_class(instance)
+            rep = self.custom_response(status=result,data=serializer.data)
+            return Response(rep,status=status.HTTP_200_OK)        
+        rep = self.custom_response(status=result,mesg=f"Order Id {self.kwargs.get('pk')} doesn't exist")
+        return Response(rep,status=status.HTTP_404_NOT_FOUND)
+    
+    def put(self, request, *args, **kwargs):
+        result ,instance  = self.get_object()
+        
+        if result:
+            serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
+            if serializer.is_valid():
+                serializer.save()            
+                rep =self.custom_response(status=True,mesg='Order Updated',data=serializer.data)            
+                return Response(rep,status=status.HTTP_200_OK)  
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+                    
+        rep = self.custom_response(status=result,mesg=f"Order ID {self.kwargs.get('pk')} Not Found")
+        return Response(rep,status=status.HTTP_404_NOT_FOUND)
+        
     def delete(self, request, *args, **kwargs):
         
-        try:
-            instance = self.serializer_class.Meta.model.objects.get(po_number=kwargs.get('pk'))
-        except:
-            self._mesg.update({
-                'mesg' : f"Order ID {kwargs.get('pk')} Not Found",
-                'status':False
-            })
-            return Response(self._mesg,status=status.HTTP_404_NOT_FOUND)
-        
-        instance.delete()
-        self._mesg.update({
-            'mesg' : f"Order ID {kwargs.get('pk')} Deleted",
-            'status':True
-        })
-        return Response(self._mesg,status=status.HTTP_200_OK)
-        
+        result ,instance  = self.get_object()
+                
+        if result:
+            instance.delete()
+            rep = self.custom_response(status=True,mesg=f"Order ID {self.kwargs.get('pk')} Deleted")
+            return Response(rep,status=status.HTTP_200_OK)        
+        rep = self.custom_response(status=False,mesg=f"Order ID {self.kwargs.get('pk')} Not Found")
+        return Response(rep,status=status.HTTP_404_NOT_FOUND)
+
 class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
     
     permission_classes = [IsAuthenticated,amIOwner]
@@ -285,25 +312,22 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
         
         instance = self.get_queryset()
         serializer = self.serializer_class(instance=instance,data=request.data,partial=True)
-        
         order_type = self.request.query_params.get('type')
-        
-        
-        if serializer.is_valid(): 
-                       
+        if serializer.is_valid(raise_exception=True): 
+                                   
             if order_type == "order_approved":
                 handler = Handle_Order_Approve()
                 result , message = handler.handle(instance)
                 
                 if result:       
                     handler.send_signal(instance)             
-                    response = self.custom_response(status=result,mesg=message,data=serializer.data)                    
+                    response = self.custom_response(status=result,mesg=message)                    
                     return Response(response,status=status.HTTP_200_OK)
                                 
                 response = self.custom_response(result,message)
                 return Response(response,status=status.HTTP_400_BAD_REQUEST)
             
-            if order_type == "order_delivered":
+            elif order_type == "order_delivered":
                 handler = Handle_Order_Delivered()
                 result , message = handler.handle(instance)
                 
@@ -315,18 +339,18 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
                 response = self.custom_response(result,message)
                 return Response(response,status=status.HTTP_400_BAD_REQUEST)
                     
-            if order_type == "order_cancel":
+            elif order_type == "order_cancel":
                 handler = Handle_Order_Cancel()
                 result , message = handler.handle(instance)
                 if result:
                     handler.send_signal(instance)
-                    response = self.custom_response(status=result,mesg=message,data=serializer.data) 
+                    response = self.custom_response(status=result,mesg=message) 
                     return Response(response,status=status.HTTP_200_OK)
                 
                 response = self.custom_response(status=result,mesg=message) 
                 return Response(response,status=status.HTTP_400_BAD_REQUEST)
             
-            if order_type == "order_rate":                
+            elif order_type == "order_rate":                
                 po_rating = self.request.query_params.get('rating')
                 handler = Handle_Order_Rate()
                 result , message = handler.handle(instance,rating=po_rating)
@@ -338,37 +362,35 @@ class AcknowledgeOrder(UserResponse,generics.UpdateAPIView):
                 
                 response = self.custom_response(status=result,mesg=message) 
                 return Response(response,status=status.HTTP_400_BAD_REQUEST)
-                   
+
+            else:
+                rep = self.custom_response(status=False,mesg="order_type must pass")
+                return Response(rep,status=status.HTTP_404_NOT_FOUND)
+
 #Performance
 
 class Get_Vendor_Performance(UserResponse,generics.RetrieveAPIView):
     
     serializer_class = VendorPerformanceSerializer
     
-    def get_queryset(self):
+    def get_object(self):
         instance = self.serializer_class.Meta.model.objects.filter(user__id = self.kwargs.get('pk')).first()
-        if not instance:
-            self._mesg['mesg'] = "User Don't Exist"
-            raise serializers.ValidationError(self._mesg)
-        
-        
-        return instance
-        
+        if instance:
+            return instance
+        raise serializers.ValidationError("User Don't Exist")
+            
     def get(self, request, *args, **kwargs):
-        instance = self.get_queryset()
-        serializer = self.serializer_class(instance)
-        self._mesg.update({
-            'data' : serializer.data,
-            'status' :True,
-        })
-        return Response(self._mesg,status=status.HTTP_200_OK)
+        instance = self.get_object()
+        serializer = self.serializer_class(instance)        
+        rep = self.custom_response(status=True,data=serializer.data)
+        return Response(rep,status=status.HTTP_200_OK)
 
-      
+
 class Handle_Order_Approve(OrderHandler) :
     
     def validate(self, instance):
-        # if instance.acknowledgment_date:
-        #     return False, 'This order has already been acknowledged.'
+        if instance.acknowledgment_date:
+            return False, 'This order has already been acknowledged.'
         return True , None
             
     def handle(self, instance):
@@ -388,8 +410,11 @@ class Handle_Order_Delivered(OrderHandler):
         if not instance.acknowledgment_date:
             return False , 'Approve , Purchase Order First'
         
-        # if instance.status == 'completed':
-        #     return False , 'Invalid , Order Already Delivered'
+        if instance.status == 'canceled':
+            return False , 'Invalid , Order Already Canceled'
+        
+        if instance.status == 'completed':
+            return False , 'Invalid , Order Already Delivered'
                 
         return True , None
     
@@ -422,13 +447,17 @@ class Handle_Order_Cancel(OrderHandler):
         return validate
     
     def send_signal(self, instance):
-        post_save_signal.send(ender=instance.__class__ , instance=instance ,type="order_cancel")
+        post_save_signal.send(sender=instance.__class__ , instance=instance ,type="order_cancel")
 
 class Handle_Order_Rate(OrderHandler):
     
     def validate(self, instance):
         if instance.quality_rating:
             return False , "Rating Already Provided"
+        
+        if instance.status != 'completed':
+            return False , "Invalid , already product canceled , unable to rate"
+
         return True , None
 
     def handle(self, instance,**kwarg):        
