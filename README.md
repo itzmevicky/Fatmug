@@ -28,7 +28,8 @@ pip install -r req.txt
 
 
 ## Step 3 : Using the API Endpoints 
-  Easiest way to test this API , install postman collections .
+
+  **Easiest way to test this API , install postman collections**
 
   # Base URL 
     http://127.0.0.1:8000/api/
